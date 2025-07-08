@@ -48,3 +48,6 @@
 ## 🧠 Inspiration
 
 This project was built to support dynamic runtime environments for users needing isolated compute sessions—ideal for ML training, educational environments, or multi-user notebooks.
+
+## 📄 License
+This project is licensed under the [MIT License](./LICENSE).
