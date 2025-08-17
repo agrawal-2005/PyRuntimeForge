@@ -2,6 +2,19 @@
 
 PyRuntime Forge is a web-based application that provides "Jupyter Notebook as a Service." It allows users to register and receive their own personal, isolated coding environment running inside a Kubernetes cluster. Users can log in and execute Python code directly from their browser, with the output streamed back in real-time.
 
+## Screenshots
+
+Here's a look at the application's user interface.
+
+**Login & Registration Page**
+*Users can easily toggle between creating a new account and logging in.*
+![Login](./Login_page.png)
+![Registration UI](./Signup_Page.png)
+
+**Command Execution Console**
+*After logging in, users get access to their personal console to execute Python code.*
+![Command Console UI](./Main.png)
+
 ## Features
 
 - **User Registration & Login:** Securely register users and store their details in a MongoDB database.
