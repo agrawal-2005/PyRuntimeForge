@@ -1,0 +1,4 @@
+flask
+pymongo
+kubernetes
+flask-socketio

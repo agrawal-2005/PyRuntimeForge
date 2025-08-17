@@ -1,233 +1,416 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>User Registration and Login</title>
+    <title>PyRuntime Forge</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f8f9fa; /* Set a light background color */
-      }
+        :root {
+            --primary-color: #6a5acd;
+            --primary-hover: #5a4abf;
+            --background-color: #f4f7f6;
+            --card-background: #ffffff;
+            --text-color: #333;
+            --border-color: #e0e0e0;
+            --success-color: #28a745;
+            --error-color: #dc3545;
+            --console-bg: #2b2b2b;
+            --console-text: #f1f1f1;
+        }
 
-      h1 {
-        font-size: 1.5rem;
-        margin-top: 20px;
-        text-align: center;
-      }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-      form {
-        max-width: 400px; /* Set max-width for forms */
-        margin: 0 auto; /* Center forms horizontally */
-        background-color: #fff; /* Set form background color */
-        padding: 20px;
-        border-radius: 8px; /* Add some border radius for form styling */
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Add a subtle box shadow */
-      }
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
 
-      label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: bold;
-      }
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
 
-      input[type="text"],
-      input[type="email"] {
-        width: 100%;
-        padding: 10px;
-        margin-bottom: 15px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-      }
+        header h1 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
 
-      button[type="submit"] {
-        width: 100%;
-        padding: 10px;
-        background-color: #007bff;
-        color: #fff;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-      }
+        header p {
+            font-size: 1.1rem;
+            color: #666;
+        }
 
-      button[type="submit"]:hover {
-        background-color: #0056b3;
-      }
+        .card {
+            width: 100%;
+            /* --- Increased width as requested --- */
+            max-width: 500px; 
+            background-color: var(--card-background);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            margin-bottom: 2rem;
+            /* --- Styles for smooth transition --- */
+            transition: opacity 0.4s ease, max-height 0.6s ease, margin 0.6s ease, padding 0.6s ease;
+            overflow: hidden;
+        }
 
-      #command-section {
-        max-width: 600px; /* Set max-width for command section */
-        margin: 20px auto; /* Center command section */
-        background-color: #fff; /* Set section background color */
-        padding: 20px;
-        border-radius: 8px; /* Add some border radius */
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Add a subtle box shadow */
-      }
+        .card.hidden {
+            opacity: 0;
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            margin-bottom: 0;
+            border: none;
+        }
 
-      #command-section h1 {
-        font-size: 1.5rem;
-        margin-bottom: 15px;
-        text-align: center;
-      }
 
-      #command-section label {
-        display: block;
-        margin-bottom: 10px;
-        font-weight: bold;
-      }
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
 
-      #command-section input[type="text"] {
-        width: 100%;
-        padding: 10px;
-        margin-bottom: 15px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-      }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
 
-      #command-section button {
-        width: 100%;
-        padding: 10px;
-        background-color: #007bff;
-        color: #fff;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-      }
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
 
-      #command-section button:hover {
-        background-color: #0056b3;
-      }
+        input[type="text"]:focus,
+        input[type="email"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(106, 90, 205, 0.2);
+        }
 
-      #output {
-        margin-top: 20px;
-        border-top: 1px solid #ccc;
-        padding-top: 20px;
-      }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
 
-      #output p {
-        margin-bottom: 10px;
-      }
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+        
+        .toggle-form {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .toggle-form a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        #command-section {
+            width: 100%;
+            max-width: 800px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        
+        #command-section.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #command-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        #command {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 1rem;
+            background-color: #fdfdfd;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        #output {
+            margin-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1.5rem;
+        }
+
+        #output pre {
+            background-color: var(--console-bg);
+            color: var(--console-text);
+            padding: 1rem;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(-50px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            z-index: 1000;
+        }
+        #notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        #notification.success { background-color: var(--success-color); }
+        #notification.error { background-color: var(--error-color); }
+
     </style>
-  </head>
-  <body>
-    <h1>User Registration</h1>
-    <form id="registration-form" action="/register" method="post">
-      <label for="username">Username:</label><br />
-      <input type="text" id="username" name="username" required /><br />
-      <label for="email">Email:</label><br />
-      <input type="email" id="email" name="email" required /><br />
-      <button type="submit">Register</button>
-    </form>
+</head>
+<body>
 
-    <h1>User Login</h1>
-    <form id="login-form" action="/login" method="post">
-      <label for="email-login">Email:</label><br />
-      <input type="email" id="email-login" name="email" required /><br />
-      <button type="submit">Login</button>
-    </form>
-    <!-- 
-    <div id="command-section" style="display: none">
-      <h1>Command Execution</h1>
-      <label for="command">Enter command:</label><br />
-      <input type="text" id="command" name="command" />
-      <button onclick="sendCommand()">Execute</button>
-      <div id="output"></div>
-    </div> -->
-    <div id="command-section" style="display: none">
-      <h1>Command Execution</h1>
-      <label for="command">Enter command:</label><br />
-      <!-- Change input to textarea -->
-      <textarea
-        id="command"
-        name="command"
-        rows="4"
-        style="
-          width: 100%;
-          padding: 10px;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-        "
-      ></textarea>
-      <button onclick="sendCommand()">Execute</button>
-      <div id="output"></div>
+    <header>
+        <h1>PyRuntime Forge</h1>
+        <p>Your Personal Coding Environment in the Cloud</p>
+    </header>
+
+    <div id="auth-forms">
+        <div class="card" id="register-card">
+            <h2>Create an Account</h2>
+            <form id="registration-form">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required />
+                </div>
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required />
+                </div>
+                <button type="submit">Register</button>
+            </form>
+            <p class="toggle-form">
+                Already have an account? <a href="#" id="show-login-link">Login here</a>
+            </p>
+        </div>
+
+        <div class="card hidden" id="login-card">
+            <h2>Welcome Back!</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email-login">Email:</label>
+                    <input type="email" id="email-login" name="email" required />
+                </div>
+                <button type="submit">Login</button>
+            </form>
+             <p class="toggle-form">
+                Don't have an account? <a href="#" id="show-register-link">Register here</a>
+            </p>
+        </div>
+    </div>
+    
+    <div id="command-section" class="card" style="display: none;">
+        <h2>Command Console</h2>
+        <label for="command">Enter Python command:</label>
+        <textarea id="command" name="command" rows="5"></textarea>
+        <br><br>
+        <button id="execute-btn" onclick="sendCommand()">Execute</button>
+        <div id="output"></div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <div id="notification"></div>
+
     <script>
-      let containerId = null; // Store container ID globally
+        let containerId = null;
+        const socket = io();
 
-      document
-        .getElementById("registration-form")
-        .addEventListener("submit", function (event) {
-          event.preventDefault();
-          const form = event.target;
-          const formData = new FormData(form);
+        const notificationEl = document.getElementById('notification');
+        const authContainerEl = document.getElementById('auth-forms');
+        const registerCard = document.getElementById('register-card');
+        const loginCard = document.getElementById('login-card');
+        const showLoginLink = document.getElementById('show-login-link');
+        const showRegisterLink = document.getElementById('show-register-link');
+        const commandSectionEl = document.getElementById('command-section');
 
-          fetch(form.action, {
-            method: "POST",
-            body: JSON.stringify(Object.fromEntries(formData)),
-            headers: {
-              "Content-Type": "application/json",
-            },
-          })
-            .then((response) => response.text())
-            .then((message) => {
-              alert(message);
-              form.reset();
+        // --- NEW: Event listeners for the toggle links ---
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerCard.classList.add('hidden');
+            loginCard.classList.remove('hidden');
+        });
+
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginCard.classList.add('hidden');
+            registerCard.classList.remove('hidden');
+        });
+
+
+        function showNotification(message, isError = false) {
+            notificationEl.textContent = message;
+            notificationEl.className = isError ? 'error' : 'success';
+            notificationEl.classList.add('show');
+            setTimeout(() => {
+                notificationEl.classList.remove('show');
+            }, 3000);
+        }
+        
+        function setLoadingState(form, isLoading) {
+            const button = form.querySelector('button[type="submit"]');
+            if (isLoading) {
+                button.disabled = true;
+                button.textContent = 'Loading...';
+            } else {
+                button.disabled = false;
+                button.textContent = form.parentElement.id === 'register-card' ? 'Register' : 'Login';
+            }
+        }
+
+        document.getElementById('registration-form').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const form = event.target;
+            setLoadingState(form, true);
+            const formData = new FormData(form);
+
+            fetch('/register', {
+                method: 'POST',
+                body: JSON.stringify(Object.fromEntries(formData)),
+                headers: { 'Content-Type': 'application/json' },
             })
-            .catch((error) => console.error("Error:", error));
-        });
-
-      document
-        .getElementById("login-form")
-        .addEventListener("submit", function (event) {
-          event.preventDefault();
-          const form = event.target;
-          const formData = new FormData(form);
-
-          fetch(form.action, {
-            method: "POST",
-            body: JSON.stringify(Object.fromEntries(formData)),
-            headers: {
-              "Content-Type": "application/json",
-            },
-          })
-            .then((response) => response.json())
-            .then((data) => {
-              if (data.container_id) {
-                containerId = data.container_id; // Store the container ID
-                alert(
-                  `Access granted to container with ID: ${data.container_id}`
-                );
-                form.reset();
-                document.getElementById("command-section").style.display =
-                  "block"; // Show command section
-              } else {
-                alert("User not found");
-              }
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showNotification(data.error, true);
+                } else {
+                    showNotification(data.message || 'Registration successful!');
+                    form.reset();
+                    // Automatically switch to login form after successful registration
+                    showLoginLink.click();
+                }
             })
-            .catch((error) => console.error("Error:", error));
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred.', true);
+            })
+            .finally(() => {
+                setLoadingState(form, false);
+            });
         });
 
-      function sendCommand() {
-        const command = document.getElementById("command").value;
-        const socket = io(); // Connect to the Socket.IO server
-        socket.emit("execute_command", {
-          command: command,
-          container_id: containerId,
-        }); // Send command and container ID to server
+        document.getElementById('login-form').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const form = event.target;
+            setLoadingState(form, true);
+            const formData = new FormData(form);
 
-        socket.on("command_output", function (data) {
-          const outputDiv = document.getElementById("output");
-          // Clear previous output
-          outputDiv.innerHTML = "";
-          // Append new output
-          outputDiv.innerHTML += "<p>" + data.output + "</p>";
+            fetch('/login', {
+                method: 'POST',
+                body: JSON.stringify(Object.fromEntries(formData)),
+                headers: { 'Content-Type': 'application/json' },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.container_id) {
+                    containerId = data.container_id;
+                    showNotification('Login successful! Access granted.');
+                    form.reset();
+                    authContainerEl.style.display = 'none';
+                    commandSectionEl.style.display = 'block';
+                    setTimeout(() => commandSectionEl.classList.add('visible'), 10);
+                } else {
+                    showNotification(data.error || 'User not found.', true);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('An unexpected error occurred.', true);
+            })
+            .finally(() => {
+                setLoadingState(form, false);
+            });
         });
-      }
+
+        function sendCommand() {
+            const command = document.getElementById('command').value;
+            const executeBtn = document.getElementById('execute-btn');
+            const outputDiv = document.getElementById('output');
+            
+            if (!command.trim()) {
+                showNotification('Command cannot be empty.', true);
+                return;
+            }
+
+            executeBtn.disabled = true;
+            executeBtn.textContent = 'Executing...';
+            outputDiv.innerHTML = '';
+
+            socket.emit('execute_command', {
+                command: command,
+                container_id: containerId,
+            });
+        }
+        
+        socket.on('command_output', function (data) {
+            const outputDiv = document.getElementById('output');
+            const executeBtn = document.getElementById('execute-btn');
+            
+            const outputPre = document.createElement('pre');
+            outputPre.textContent = data.output;
+            outputDiv.appendChild(outputPre);
+            
+            executeBtn.disabled = false;
+            executeBtn.textContent = 'Execute';
+        });
+
     </script>
-  </body>
+</body>
 </html>
