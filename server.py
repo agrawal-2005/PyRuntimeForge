@@ -15,7 +15,7 @@ import re
 load_dotenv()
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 active_exec_sessions = {}
 active_exec_sessions_lock = threading.Lock()
 
@@ -292,6 +292,7 @@ def handle_send_stdin(data):
 
     if session is None:
         emit('command_output', {'output': "No running command is available for input.\n"})
+        emit('command_complete')  # Reset the frontend "Running..." state
         return
 
     user_input = data.get('input', '')
