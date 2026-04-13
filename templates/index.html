@@ -195,6 +195,47 @@
             font-family: 'Courier New', Courier, monospace;
         }
 
+        #stdin-controls {
+            display: none;
+            gap: 12px;
+            margin-top: 1rem;
+            align-items: center;
+        }
+
+        #stdin-controls.visible {
+            display: flex;
+        }
+
+        #stdin-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        #send-input-btn {
+            width: auto;
+            min-width: 140px;
+        }
+
+        .console-hint {
+            margin-top: 0.75rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 640px) {
+            #stdin-controls.visible {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #send-input-btn {
+                width: 100%;
+            }
+        }
+
         #notification {
             position: fixed;
             top: 20px;
@@ -264,6 +305,16 @@
         <textarea id="command" name="command" rows="5"></textarea>
         <br><br>
         <button id="execute-btn" onclick="sendCommand()">Execute</button>
+        <div id="stdin-controls">
+            <input
+                type="text"
+                id="stdin-input"
+                placeholder="Send input to the running program"
+                disabled
+            />
+            <button id="send-input-btn" type="button" disabled>Send Input</button>
+        </div>
+        <p class="console-hint">Use the input box above when your Python program calls <code>input()</code>.</p>
         <div id="output"></div>
     </div>
 
@@ -280,6 +331,13 @@
         const showLoginLink = document.getElementById('show-login-link');
         const showRegisterLink = document.getElementById('show-register-link');
         const commandSectionEl = document.getElementById('command-section');
+        const outputDiv = document.getElementById('output');
+        const executeBtn = document.getElementById('execute-btn');
+        const stdinControlsEl = document.getElementById('stdin-controls');
+        const stdinInputEl = document.getElementById('stdin-input');
+        const sendInputBtn = document.getElementById('send-input-btn');
+
+        let commandRunning = false;
 
         // --- NEW: Event listeners for the toggle links ---
         showLoginLink.addEventListener('click', (e) => {
@@ -312,6 +370,28 @@
             } else {
                 button.disabled = false;
                 button.textContent = form.parentElement.id === 'register-card' ? 'Register' : 'Login';
+            }
+        }
+
+        function ensureOutputPre() {
+            let outputPre = outputDiv.querySelector('pre');
+            if (!outputPre) {
+                outputPre = document.createElement('pre');
+                outputDiv.appendChild(outputPre);
+            }
+            return outputPre;
+        }
+
+        function setCommandState(isRunning) {
+            commandRunning = isRunning;
+            executeBtn.disabled = isRunning;
+            executeBtn.textContent = isRunning ? 'Running...' : 'Execute';
+            stdinControlsEl.classList.toggle('visible', isRunning);
+            stdinInputEl.disabled = !isRunning;
+            sendInputBtn.disabled = !isRunning;
+
+            if (!isRunning) {
+                stdinInputEl.value = '';
             }
         }
 
@@ -381,34 +461,59 @@
 
         function sendCommand() {
             const command = document.getElementById('command').value;
-            const executeBtn = document.getElementById('execute-btn');
-            const outputDiv = document.getElementById('output');
             
             if (!command.trim()) {
                 showNotification('Command cannot be empty.', true);
                 return;
             }
 
-            executeBtn.disabled = true;
-            executeBtn.textContent = 'Executing...';
             outputDiv.innerHTML = '';
+            ensureOutputPre();
+            setCommandState(true);
 
             socket.emit('execute_command', {
                 command: command,
                 container_id: containerId,
             });
         }
-        
+
+        function sendInput() {
+            if (!commandRunning) {
+                return;
+            }
+
+            socket.emit('send_stdin', {
+                input: stdinInputEl.value,
+            });
+
+            stdinInputEl.value = '';
+            stdinInputEl.focus();
+        }
+
+        sendInputBtn.addEventListener('click', sendInput);
+
+        stdinInputEl.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendInput();
+            }
+        });
+
+        socket.on('command_started', function () {
+            setCommandState(true);
+        });
+
         socket.on('command_output', function (data) {
-            const outputDiv = document.getElementById('output');
-            const executeBtn = document.getElementById('execute-btn');
-            
-            const outputPre = document.createElement('pre');
-            outputPre.textContent = data.output;
-            outputDiv.appendChild(outputPre);
-            
-            executeBtn.disabled = false;
-            executeBtn.textContent = 'Execute';
+            const outputPre = ensureOutputPre();
+            outputPre.textContent += data.output;
+        });
+
+        socket.on('command_complete', function () {
+            const outputPre = ensureOutputPre();
+            if (!outputPre.textContent) {
+                outputPre.textContent = '[No output produced]';
+            }
+            setCommandState(false);
         });
 
     </script>

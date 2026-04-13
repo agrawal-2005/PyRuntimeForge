@@ -1,16 +1,24 @@
+import os
+import threading
+
 from flask import Flask, request, jsonify, render_template
 from pymongo import MongoClient
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
 from flask_socketio import SocketIO, emit
+from dotenv import load_dotenv
 import re
+
+load_dotenv()
 
 app = Flask(__name__)
 socketio = SocketIO(app)
+active_exec_sessions = {}
+active_exec_sessions_lock = threading.Lock()
 
 # MongoDB client
-mongo_client = MongoClient('mongodb://localhost:27017/')
+mongo_client = MongoClient(os.getenv("MONGODB_URI", "mongodb://localhost:27017/"))
 db = mongo_client['cloud']
 users_collection = db['users']
 
@@ -39,7 +47,77 @@ def get_pod_name(username, namespace="default"):
         print(f"Error getting pod name for {username}: {e}")
         return None
 
-def handle_execute_command_internal(data):
+
+def remove_exec_session(client_sid, exec_response=None):
+    with active_exec_sessions_lock:
+        session = active_exec_sessions.get(client_sid)
+        if session is None:
+            return None
+
+        if exec_response is not None and session["exec_response"] is not exec_response:
+            return None
+
+        return active_exec_sessions.pop(client_sid)
+
+
+def close_exec_session(client_sid):
+    session = remove_exec_session(client_sid)
+    if session is None:
+        return
+
+    exec_response = session["exec_response"]
+
+    try:
+        exec_response.write_stdin("\x03")
+    except Exception:
+        pass
+
+    try:
+        exec_response.close()
+    except Exception:
+        pass
+
+
+def emit_command_error(client_sid, message):
+    socketio.emit('command_output', {'output': f"{message}\n"}, to=client_sid)
+    socketio.emit('command_complete', to=client_sid)
+
+
+def stream_command_output(client_sid, exec_response):
+    try:
+        while exec_response.is_open():
+            exec_response.update(timeout=1)
+
+            if exec_response.peek_stdout():
+                socketio.emit(
+                    'command_output',
+                    {'output': exec_response.read_stdout()},
+                    to=client_sid
+                )
+
+            if exec_response.peek_stderr():
+                socketio.emit(
+                    'command_output',
+                    {'output': exec_response.read_stderr()},
+                    to=client_sid
+                )
+    except Exception as e:
+        socketio.emit(
+            'command_output',
+            {'output': f"\nAn unexpected error occurred: {str(e)}\n"},
+            to=client_sid
+        )
+    finally:
+        try:
+            exec_response.close()
+        except Exception:
+            pass
+
+        remove_exec_session(client_sid, exec_response)
+        socketio.emit('command_complete', to=client_sid)
+
+
+def start_exec_session(data, client_sid):
     command = data['command']
     username = data['container_id']  # This is actually the username
     namespace = "default"
@@ -47,7 +125,8 @@ def handle_execute_command_internal(data):
     pod_name = get_pod_name(username, namespace)
 
     if not pod_name:
-        return f"Error: Could not find a running pod for user '{username}'."
+        emit_command_error(client_sid, f"Error: Could not find a running pod for user '{username}'.")
+        return
 
     # The container name is the same as the username in the deployment manifest
     container_name = username
@@ -64,29 +143,24 @@ def handle_execute_command_internal(data):
             command=command_to_exec,
             container=container_name,
             stderr=True,
-            stdin=False, # No input needed
+            stdin=True,
             stdout=True,
             tty=False,
             _preload_content=False
         )
 
-        output = ""
-        while exec_response.is_open():
-            exec_response.update(timeout=1)
-            if exec_response.peek_stdout():
-                output += exec_response.read_stdout()
-            if exec_response.peek_stderr():
-                output += exec_response.read_stderr()
-        
-        # Ensure the response is closed
-        exec_response.close()
+        with active_exec_sessions_lock:
+            active_exec_sessions[client_sid] = {
+                "exec_response": exec_response,
+            }
 
-        return output if output else "[No output produced]"
+        socketio.emit('command_started', to=client_sid)
+        socketio.start_background_task(stream_command_output, client_sid, exec_response)
 
     except ApiException as e:
-        return f"Kubernetes API Error: {e.reason}"
+        emit_command_error(client_sid, f"Kubernetes API Error: {e.reason}")
     except Exception as e:
-        return f"An unexpected error occurred: {str(e)}"
+        emit_command_error(client_sid, f"An unexpected error occurred: {str(e)}")
     
 def sanitize_for_k8s(name):
     """Sanitizes a string to be a valid Kubernetes resource name."""
@@ -174,8 +248,33 @@ def login():
 
 @socketio.on('execute_command')
 def handle_execute_command(data):
-    output = handle_execute_command_internal(data)
-    emit('command_output', {'output': output})
+    client_sid = request.sid
+    close_exec_session(client_sid)
+    start_exec_session(data, client_sid)
+
+
+@socketio.on('send_stdin')
+def handle_send_stdin(data):
+    client_sid = request.sid
+
+    with active_exec_sessions_lock:
+        session = active_exec_sessions.get(client_sid)
+
+    if session is None:
+        emit('command_output', {'output': "No running command is available for input.\n"})
+        return
+
+    user_input = data.get('input', '')
+
+    try:
+        session["exec_response"].write_stdin(f"{user_input}\n")
+    except Exception as e:
+        emit('command_output', {'output': f"Failed to send input: {str(e)}\n"})
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    close_exec_session(request.sid)
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)

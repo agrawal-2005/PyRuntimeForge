@@ -1,6 +1,7 @@
 # Python virtual environment
 venv/
 /venv/
+.venv/
 
 # Python bytecode and cache
 __pycache__/
@@ -14,6 +15,7 @@ __pycache__/
 
 # OS-specific files
 .DS_Store
+**/.DS_Store
 
 # Environment variables file (if you use one)
 .env
