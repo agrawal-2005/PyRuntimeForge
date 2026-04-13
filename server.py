@@ -1,4 +1,6 @@
 import os
+import base64
+import tempfile
 import threading
 
 from flask import Flask, request, jsonify, render_template
@@ -23,7 +25,18 @@ db = mongo_client['cloud']
 users_collection = db['users']
 
 # Kubernetes API client
-config.load_kube_config()
+# On Render (production): kubeconfig is stored as a base64-encoded env variable.
+# Locally: falls back to ~/.kube/config as usual.
+kubeconfig_b64 = os.getenv("KUBECONFIG_BASE64")
+if kubeconfig_b64:
+    kubeconfig_yaml = base64.b64decode(kubeconfig_b64).decode("utf-8")
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as tmp:
+        tmp.write(kubeconfig_yaml)
+        _kubeconfig_path = tmp.name
+    config.load_kube_config(config_file=_kubeconfig_path)
+else:
+    config.load_kube_config()
+
 k8s_apps_v1 = client.AppsV1Api()
 k8s_core_v1 = client.CoreV1Api()
 
@@ -277,4 +290,6 @@ def handle_disconnect():
     close_exec_session(request.sid)
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    port = int(os.getenv("PORT", 5000))
+    debug = os.getenv("FLASK_ENV") != "production"
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug)
