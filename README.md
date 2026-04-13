@@ -497,6 +497,22 @@ Runnable test cases:
 
 ---
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License. See [LICENSE](./LICENSE).
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👨‍💻 Author
+
+**Prashant Agrawal**
+
+[![GitHub](https://img.shields.io/badge/GitHub-agrawal--2005-181717?style=flat-square&logo=github)](https://github.com/agrawal-2005)
+
+---
+
+<div align="center">
+
+⭐ **If you find this project useful, please give it a star!** ⭐
+
+</div>
