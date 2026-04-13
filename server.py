@@ -27,18 +27,28 @@ users_collection = db['users']
 # Kubernetes API client
 # On Render (production): kubeconfig is stored as a base64-encoded env variable.
 # Locally: falls back to ~/.kube/config as usual.
-kubeconfig_b64 = os.getenv("KUBECONFIG_BASE64")
-if kubeconfig_b64:
-    kubeconfig_yaml = base64.b64decode(kubeconfig_b64).decode("utf-8")
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as tmp:
-        tmp.write(kubeconfig_yaml)
-        _kubeconfig_path = tmp.name
-    config.load_kube_config(config_file=_kubeconfig_path)
-else:
-    config.load_kube_config()
+# Wrapped in try/except so a missing or malformed kubeconfig does not
+# crash the app at startup — errors will surface only when k8s is called.
+k8s_apps_v1 = None
+k8s_core_v1 = None
 
-k8s_apps_v1 = client.AppsV1Api()
-k8s_core_v1 = client.CoreV1Api()
+try:
+    kubeconfig_b64 = os.getenv("KUBECONFIG_BASE64")
+    if kubeconfig_b64:
+        kubeconfig_yaml = base64.b64decode(kubeconfig_b64).decode("utf-8")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as tmp:
+            tmp.write(kubeconfig_yaml)
+            _kubeconfig_path = tmp.name
+        config.load_kube_config(config_file=_kubeconfig_path)
+    else:
+        config.load_kube_config()
+
+    k8s_apps_v1 = client.AppsV1Api()
+    k8s_core_v1 = client.CoreV1Api()
+    print("Kubernetes client initialized successfully.")
+except Exception as e:
+    print(f"WARNING: Kubernetes client could not be initialized: {e}")
+    print("Pod creation and execution will not work until KUBECONFIG_BASE64 is set correctly.")
 
 def get_pod_name(username, namespace="default"):
     """
@@ -131,6 +141,10 @@ def stream_command_output(client_sid, exec_response):
 
 
 def start_exec_session(data, client_sid):
+    if k8s_core_v1 is None:
+        emit_command_error(client_sid, "Error: Kubernetes is not configured on this server.")
+        return
+
     command = data['command']
     username = data['container_id']  # This is actually the username
     namespace = "default"
@@ -191,6 +205,9 @@ def index():
 
 @app.route('/register', methods=['POST'])
 def register():
+    if k8s_apps_v1 is None:
+        return jsonify({"error": "Kubernetes is not configured on this server."}), 503
+
     user_data = request.json
     original_username = user_data.get('username')
     email = user_data.get('email')

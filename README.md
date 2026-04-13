@@ -124,7 +124,8 @@ PyRuntimeForge/
 │   └── ram_statefulness_step2.py
 ├── .env                                # MongoDB URI (not committed)
 ├── .gitignore
-├── Dockerfile                          # Custom user-pod image (Python 3.9-slim + data science libs)
+├── Dockerfile                          # Flask server image (used by Render)
+├── pod.Dockerfile                      # Custom user-pod image (Python 3.9-slim + data science libs)
 ├── LICENSE
 ├── README.md
 ├── requirements.txt                    # Server-side Python dependencies
