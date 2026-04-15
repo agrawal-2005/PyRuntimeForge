@@ -27,3 +27,6 @@ __pycache__/
 
 # Log files
 *.log
+
+# Auto-generated tool output
+graphify-out/
